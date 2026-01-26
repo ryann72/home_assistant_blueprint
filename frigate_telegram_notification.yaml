@@ -9,11 +9,11 @@ blueprint:
       description: "Nom de la caméra dans Frigate (/config.yml)"
 
     target_notify:
-     name: 'Entité Telegram'
-     description: 'Entité notify Telegram '
-     selector:
-       entity:
-         domain: notify
+      name: "Entité Telegram"
+      description: "Entité notify Telegram"
+      selector:
+        entity:
+          domain: notify
 
     notification:
       name: "Désactiver la notification"
@@ -78,26 +78,35 @@ variables:
   id: "{{ trigger.payload_json.after.id }}"
   camera: "{{ trigger.payload_json.after.camera }}"
   camera_name: "{{ camera | replace('_', ' ') | title }}"
-  object: "{{ trigger.payload_json.after.label }}"
-  label: "{{ object | title }}"
+
+  # Label brut et formaté
+  object: "{{ trigger.payload_json.after.label | lower }}"
+  label: "{{ trigger.payload_json.after.label | title }}"
+
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
   type: "{{ trigger.payload_json.type }}"
 
+  # Telegram
   notify_entity: !input target_notify
-  base_url: !input base_url
-  zone_only: !input zone_filter
-  presence_entity: !input presence_filter
   notification: !input notification
   notification_text: !input notification_text
 
-  # ⬇ Lecture YAML propre
+  # URL de base
+  base_url: !input base_url
+
+  # Zones
+  zone_only: !input zone_filter
   input_zones: !input zones
+  zones: "{{ input_zones | default([]) }}"
+
+  # Labels
   input_labels: !input labels
+  labels: "{{ input_labels | map('lower') | list }}"
 
-  # ⬇ Transformation sûre en liste
-  zones: "{{ input_zones if input_zones is not none else [] }}"
-  labels: "{{ input_labels if input_labels is not none else [] }}"
+  # Présence
+  presence_entity: !input presence_filter
 
+  # Texte de notification final
   notif_text: >
     {{ notification_text
        if notification_text | length > 0
@@ -111,7 +120,7 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-  # 📸 Envoi du snapshot
+  # Envoi du snapshot
   - service: notify.send_message
     target:
       entity_id: "{{ notify_entity }}"
@@ -121,7 +130,7 @@ action:
       photo:
         - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
-  # 🎥 Envoi du clip vidéo à la fin de l'événement
+  # Envoi du clip vidéo à la fin
   - repeat:
       sequence:
         - wait_for_trigger:
