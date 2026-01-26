@@ -9,11 +9,11 @@ blueprint:
       description: "Nom de la caméra dans Frigate (/config.yml)"
 
     target_notify:
-      name: "Entité Telegram"
-      description: "Entité notify Telegram (ex: notify.telegram_123456789)"
-      selector:
-        entity:
-          domain: notify
+     name: 'Entité Telegram'
+     description: 'Entité notify Telegram (ex: notify.telegram_123456789)'
+     selector:
+       entity:
+         domain: notify
 
     notification:
       name: "Désactiver la notification"
