@@ -1,12 +1,12 @@
 blueprint:
-  name: Frigate - Notification Telegram
-  description: Notifications Frigate via Telegram (nouvelle syntaxe notify)
+  name: Frigate - Notification Telegram (nouvelle syntaxe)
+  description: Notifications Frigate (snapshot + clip) via Telegram avec notify.send_message
   domain: automation
 
   input:
     camera:
       name: Caméra Frigate
-      description: Nom de la caméra dans Frigate
+      description: Nom de la caméra dans Frigate (/config.yml)
 
     target_notify:
       name: Entité Telegram
@@ -28,35 +28,40 @@ blueprint:
 
     notification_text:
       name: (Optionnel) Texte de la notification
-      description: Texte personnalisé de la notification Telegram
+      description: Texte personnalisé pour la notification Telegram
       default: ''
       selector:
         text:
 
     base_url:
       name: (Optionnel) URL de base
+      description: URL externe de Home Assistant
       default: ''
 
     zone_filter:
       name: (Optionnel) Filtre par zone
+      description: Notifier uniquement si une zone est franchie
       default: false
       selector:
         boolean: {}
 
     zones:
       name: (Optionnel) Zones Frigate
+      description: Zones autorisées
       default: []
       selector:
         object: {}
 
     labels:
       name: (Optionnel) Objets Frigate
+      description: Objets à notifier (person, car, etc.)
       default: []
       selector:
         object: {}
 
     presence_filter:
       name: (Optionnel) Filtre de présence
+      description: Notifier uniquement si l’entité n’est pas à la maison
       default: ''
       selector:
         entity: {}
@@ -78,11 +83,17 @@ variables:
   label: "{{ object | title }}"
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
   type: "{{ trigger.payload_json.type }}"
+
   notify_entity: !input target_notify
   base_url: !input base_url
   zone_only: !input zone_filter
-  zones: "{{ ( !input zones ) | list }}"
-  labels: "{{ ( !input labels ) | list }}"
+
+  input_zones: !input zones
+  zones: "{{ input_zones | list }}"
+
+  input_labels: !input labels
+  labels: "{{ input_labels | list }}"
+
   presence_entity: !input presence_filter
   notification: !input notification
   notification_text: !input notification_text
@@ -100,7 +111,7 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-  # 📸 Snapshot
+  # 📸 Envoi du snapshot
   - service: notify.send_message
     target:
       entity_id: "{{ notify_entity }}"
@@ -110,7 +121,7 @@ action:
       photo:
         - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
-  # 🎥 Clip vidéo
+  # 🎥 Envoi du clip vidéo à la fin de l'événement
   - repeat:
       sequence:
         - wait_for_trigger:
