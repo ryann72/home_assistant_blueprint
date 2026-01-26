@@ -1,0 +1,125 @@
+blueprint:
+  name: Frigate - Notification Telegram
+  description: Crée des automatisations pour recevoir des snapshots et des clips Frigate via Telegram
+  domain: automation
+  input:
+    camera:
+      name: Caméra Frigate
+      description: Nom de la caméra tel que défini dans la configuration Frigate (/config.yml).
+    target_chat:
+      name: Cible Telegram
+      description: >
+        chat_id utilisé par le bot Telegram.
+        Les !secret ne sont pas autorisés dans les blueprints.
+    notification:
+      name: Désactiver la notification
+      description: >
+        Sélectionnez "true" pour envoyer sans notification sonore,
+        "false" pour recevoir une notification normale.
+      selector:
+        select:
+          options:
+            - 'true'
+            - 'false'
+      default: 'false'
+    base_url:
+      name: (Optionnel) URL de base
+      description: URL externe de votre instance Home Assistant.
+      default: ''
+    zone_filter:
+      name: (Optionnel) Filtre par zone
+      description: Notifier uniquement si un objet entre dans une zone définie.
+      default: false
+      selector:
+        boolean: {}
+    zones:
+      name: (Optionnel) Zones déclencheuses
+      description: Liste des zones Frigate à surveiller.
+      default: []
+      selector:
+        object: {}
+    labels:
+      name: (Optionnel) Objets détectés
+      description: Liste des objets Frigate à notifier (person, car, etc.).
+      default: []
+      selector:
+        object: {}
+    presence_filter:
+      name: (Optionnel) Filtre de présence
+      description: Notifier uniquement si l’entité sélectionnée n’est pas à la maison.
+      default: ''
+      selector:
+        entity: {}
+
+  source_url: https://gist.github.com/NdR91/5486a1e55101e062c48545395b7dd9a3
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  platform: mqtt
+  topic: frigate/events
+  payload: !input camera
+  value_template: "{{ value_json['after']['camera'] }}"
+
+variables:
+  id: "{{ trigger.payload_json['after']['id'] }}"
+  camera: "{{ trigger.payload_json['after']['camera'] }}"
+  camera_name: "{{ camera | replace('_', ' ') | title }}"
+  target_chat: !input target_chat
+  object: "{{ trigger.payload_json['after']['label'] }}"
+  label: "{{ object | title }}"
+  entered_zones: "{{ trigger.payload_json['after']['entered_zones'] }}"
+  type: "{{ trigger.payload_json['type'] }}"
+  base_url: !input base_url
+  zone_only: !input zone_filter
+  input_zones: !input zones
+  zones: "{{ input_zones | list }}"
+  input_labels: !input labels
+  labels: "{{ input_labels | list }}"
+  presence_entity: !input presence_filter
+  notification: !input notification
+
+condition:
+  - "{{ type != 'end' }}"
+  - "{{ not zone_only or entered_zones | length > 0 }}"
+  - "{{ not zones | length or zones | select('in', entered_zones) | list | length > 0 }}"
+  - "{{ not labels | length or object in labels }}"
+  - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
+
+action:
+  - service: notify.telegram
+    data:
+      target: "{{ target_chat }}"
+      message: >
+        Mouvement détecté.
+        Caméra : {{ camera_name }} (ID : {{ id }})
+      data:
+        disable_notification: "{{ notification }}"
+        photo:
+          - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
+
+  - repeat:
+      sequence:
+        - wait_for_trigger:
+            - platform: mqtt
+              topic: frigate/events
+              payload: "{{ id }}"
+              value_template: "{{ value_json['after']['id'] }}"
+          timeout:
+            minutes: 2
+          continue_on_timeout: false
+
+        - condition: template
+          value_template: "{{ wait.trigger.payload_json['type'] == 'end' }}"
+
+        - service: notify.telegram
+          data:
+            target: "{{ target_chat }}"
+            message: "Mouvement détecté. Caméra : {{ camera_name }}"
+            data:
+              disable_notification: "{{ notification }}"
+              video:
+                - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+
+      until: "{{ wait.trigger.payload_json['type'] == 'end' }}"
