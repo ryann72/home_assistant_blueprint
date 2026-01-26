@@ -113,7 +113,6 @@ variables:
        else '🚨 Mouvement détecté — Caméra : ' ~ camera_name ~ ' (Objet : ' ~ label ~ ')' }}
 
 condition:
-  - "{{ type != 'end' }}"
   - "{{ not zone_only or entered_zones | length > 0 }}"
   - "{{ zones | length == 0 or (entered_zones | select('in', zones) | list | length > 0) }}"
   - "{{ labels | length == 0 or object in labels }}"
