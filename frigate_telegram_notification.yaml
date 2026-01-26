@@ -1,67 +1,67 @@
 blueprint:
-  name: Frigate - Notification Telegram (nouvelle syntaxe)
-  description: Notifications Frigate (snapshot + clip) via Telegram avec notify.send_message
+  name: "Frigate - Notification Telegram (nouvelle syntaxe)"
+  description: "Notifications Frigate (snapshot + clip) via Telegram avec notify.send_message"
   domain: automation
 
   input:
     camera:
-      name: Caméra Frigate
-      description: Nom de la caméra dans Frigate (/config.yml)
+      name: "Caméra Frigate"
+      description: "Nom de la caméra dans Frigate (/config.yml)"
 
     target_notify:
-      name: Entité Telegram
-      description: Entité notify Telegram (ex: notify.telegram_123456789)
+      name: "Entité Telegram"
+      description: "Entité notify Telegram (ex: notify.telegram_123456789)"
       selector:
         entity:
           domain: notify
 
     notification:
-      name: Désactiver la notification
-      description: true = silencieux / false = normal
-      default: 'false'
+      name: "Désactiver la notification"
+      description: "true = silencieux / false = normal"
+      default: "false"
       selector:
         select:
           options:
-            - 'true'
-            - 'false'
+            - "true"
+            - "false"
 
     notification_text:
-      name: (Optionnel) Texte de la notification
-      description: Texte personnalisé pour la notification Telegram
-      default: ''
+      name: "(Optionnel) Texte de la notification"
+      description: "Texte personnalisé pour la notification Telegram"
+      default: ""
       selector:
         text:
 
     base_url:
-      name: (Optionnel) URL de base
-      description: URL externe de Home Assistant
-      default: ''
+      name: "(Optionnel) URL de base"
+      description: "URL externe de Home Assistant"
+      default: ""
 
     zone_filter:
-      name: (Optionnel) Filtre par zone
-      description: Notifier uniquement si une zone est franchie
+      name: "(Optionnel) Filtre par zone"
+      description: "Notifie uniquement si une zone est franchie"
       default: false
       selector:
         boolean: {}
 
     zones:
-      name: (Optionnel) Zones Frigate
-      description: Liste de zones à surveiller
+      name: "(Optionnel) Zones Frigate"
+      description: "Liste de zones à surveiller"
       default: []
       selector:
         object: {}
 
     labels:
-      name: (Optionnel) Objets Frigate
-      description: Liste d’objets à surveiller (person, car, etc.)
+      name: "(Optionnel) Objets Frigate"
+      description: "Liste d’objets à surveiller (person, car, etc.)"
       default: []
       selector:
         object: {}
 
     presence_filter:
-      name: (Optionnel) Filtre de présence
-      description: Notifier uniquement si l’entité n’est pas à la maison
-      default: ''
+      name: "(Optionnel) Filtre de présence"
+      description: "Notifie uniquement si l’entité n’est pas à la maison"
+      default: ""
       selector:
         entity: {}
 
