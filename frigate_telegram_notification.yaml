@@ -108,14 +108,16 @@ condition:
 
 action:
   # Envoi du snapshot
-  - service: "{{ notify_entity }}"
+  - service: notify.send_message
     data:
-      message: "{{ notif_text }}"
+      entity_id: "{{ notify_entity }}"
       title: "Snapshot Frigate"
+      message: "{{ notif_text }}"
       data:
         photo:
           - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
             caption: "Caméra: {{ camera_name }} (Objet: {{ label }})"
+
 
   # Envoi du clip vidéo à la fin
   - repeat:
@@ -132,10 +134,11 @@ action:
         - condition: template
           value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
-        - service: "{{ notify_entity }}"
+        - service: notify.send_message
           data:
-            message: "{{ notif_text }}"
+            entity_id: "{{ notify_entity }}"
             title: "Clip Frigate"
+            message: "{{ notif_text }}"
             data:
               video:
                 - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
