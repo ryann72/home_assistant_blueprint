@@ -133,4 +133,8 @@ action:
             entity_id: "{{ notify_entity }}"
           data:
             message: "{{ notif_text }}"
-            disabl
+            disable_notification: "{{ notification }}"
+            video:
+              - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+
+      until: "{{ wait.trigger.payload_json.type == 'end' }}"
