@@ -1,17 +1,16 @@
 blueprint:
   name: Frigate - Notification Telegram (nouvelle syntaxe)
-  description: Notifications Frigate (snapshot + clip) via Telegram avec notify.send_message
+  description: Notifications Frigate via Telegram avec notify.send_message
   domain: automation
 
   input:
     camera:
       name: Caméra Frigate
-      description: Nom de la caméra dans Frigate (/config.yml)
+      description: Nom de la caméra dans Frigate
 
     target_notify:
       name: Entité Telegram
-      description: >
-        Entité notify Telegram (ex: notify.telegram_123456789)
+      description: Entité notify Telegram (ex: notify.telegram_123456789)
       selector:
         entity:
           domain: notify
@@ -19,49 +18,43 @@ blueprint:
     notification:
       name: Désactiver la notification
       description: true = silencieux / false = normal
+      default: 'false'
       selector:
         select:
           options:
             - 'true'
             - 'false'
-      default: 'false'
 
     notification_text:
       name: (Optionnel) Texte de la notification
-      description: Texte personnalisé pour la notification Telegram
       default: ''
       selector:
         text:
 
     base_url:
       name: (Optionnel) URL de base
-      description: URL externe de Home Assistant
       default: ''
 
     zone_filter:
       name: (Optionnel) Filtre par zone
-      description: Notifier uniquement si une zone est franchie
       default: false
       selector:
         boolean: {}
 
     zones:
       name: (Optionnel) Zones Frigate
-      description: Zones autorisées
       default: []
       selector:
         object: {}
 
     labels:
       name: (Optionnel) Objets Frigate
-      description: Objets à notifier (person, car, etc.)
       default: []
       selector:
         object: {}
 
     presence_filter:
       name: (Optionnel) Filtre de présence
-      description: Notifier uniquement si l’entité n’est pas à la maison
       default: ''
       selector:
         entity: {}
@@ -87,16 +80,17 @@ variables:
   notify_entity: !input target_notify
   base_url: !input base_url
   zone_only: !input zone_filter
-
-  input_zones: !input zones
-  zones: "{{ input_zones | list }}"
-
-  input_labels: !input labels
-  labels: "{{ input_labels | list }}"
-
   presence_entity: !input presence_filter
   notification: !input notification
   notification_text: !input notification_text
+
+  # ⬇️ LECTURE YAML PURE
+  input_zones: !input zones
+  input_labels: !input labels
+
+  # ⬇️ TRANSFORMATION JINJA PURE
+  zones: "{{ input_zones }}"
+  labels: "{{ input_labels }}"
 
   notif_text: >
     {{ notification_text
@@ -106,12 +100,11 @@ variables:
 condition:
   - "{{ type != 'end' }}"
   - "{{ not zone_only or entered_zones | length > 0 }}"
-  - "{{ not zones | length or zones | select('in', entered_zones) | list | length > 0 }}"
-  - "{{ not labels | length or object in labels }}"
+  - "{{ zones | length == 0 or zones | select('in', entered_zones) | list | length > 0 }}"
+  - "{{ labels | length == 0 or object in labels }}"
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-  # 📸 Envoi du snapshot
   - service: notify.send_message
     target:
       entity_id: "{{ notify_entity }}"
@@ -121,7 +114,6 @@ action:
       photo:
         - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
-  # 🎥 Envoi du clip vidéo à la fin de l'événement
   - repeat:
       sequence:
         - wait_for_trigger:
@@ -141,8 +133,4 @@ action:
             entity_id: "{{ notify_entity }}"
           data:
             message: "{{ notif_text }}"
-            disable_notification: "{{ notification }}"
-            video:
-              - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
-
-      until: "{{ wait.trigger.payload_json.type == 'end' }}"
+            disabl
