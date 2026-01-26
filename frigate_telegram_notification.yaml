@@ -1,24 +1,24 @@
 blueprint:
   name: Frigate - Notification Telegram
-  description: Notifications Frigate (snapshot + clip) via Telegram
+  description: Notifications Frigate via Telegram (nouvelle syntaxe notify)
   domain: automation
 
   input:
     camera:
       name: Caméra Frigate
-      description: Nom de la caméra tel que défini dans la configuration Frigate (/config.yml).
+      description: Nom de la caméra dans Frigate
 
-    target_chat:
-      name: Cible Telegram
+    target_notify:
+      name: Entité Telegram
       description: >
-        chat_id utilisé par le bot Telegram.
-        Les !secret ne sont pas autorisés dans les blueprints.
+        Entité notify Telegram (ex: notify.telegram_123456789)
+      selector:
+        entity:
+          domain: notify
 
     notification:
       name: Désactiver la notification
-      description: >
-        Sélectionnez "true" pour envoyer sans notification sonore,
-        "false" pour recevoir une notification normale.
+      description: true = silencieux / false = normal
       selector:
         select:
           options:
@@ -28,45 +28,38 @@ blueprint:
 
     notification_text:
       name: (Optionnel) Texte de la notification
-      description: Texte personnalisé pour la notification Telegram.
+      description: Texte personnalisé de la notification Telegram
       default: ''
       selector:
         text:
 
     base_url:
       name: (Optionnel) URL de base
-      description: URL externe de votre instance Home Assistant.
       default: ''
 
     zone_filter:
       name: (Optionnel) Filtre par zone
-      description: Notifier uniquement si un objet entre dans une zone définie.
       default: false
       selector:
         boolean: {}
 
     zones:
-      name: (Optionnel) Zones déclencheuses
-      description: Liste des zones Frigate à surveiller.
+      name: (Optionnel) Zones Frigate
       default: []
       selector:
         object: {}
 
     labels:
-      name: (Optionnel) Objets détectés
-      description: Liste des objets Frigate à notifier (person, car, etc.).
+      name: (Optionnel) Objets Frigate
       default: []
       selector:
         object: {}
 
     presence_filter:
       name: (Optionnel) Filtre de présence
-      description: Notifier uniquement si l’entité sélectionnée n’est pas à la maison.
       default: ''
       selector:
         entity: {}
-
-  source_url: https://gist.github.com/NdR91/5486a1e55101e062c48545395b7dd9a3
 
 mode: single
 max_exceeded: silent
@@ -75,23 +68,21 @@ trigger:
   platform: mqtt
   topic: frigate/events
   payload: !input camera
-  value_template: "{{ value_json['after']['camera'] }}"
+  value_template: "{{ value_json.after.camera }}"
 
 variables:
-  id: "{{ trigger.payload_json['after']['id'] }}"
-  camera: "{{ trigger.payload_json['after']['camera'] }}"
+  id: "{{ trigger.payload_json.after.id }}"
+  camera: "{{ trigger.payload_json.after.camera }}"
   camera_name: "{{ camera | replace('_', ' ') | title }}"
-  target_chat: !input target_chat
-  object: "{{ trigger.payload_json['after']['label'] }}"
+  object: "{{ trigger.payload_json.after.label }}"
   label: "{{ object | title }}"
-  entered_zones: "{{ trigger.payload_json['after']['entered_zones'] }}"
-  type: "{{ trigger.payload_json['type'] }}"
+  entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
+  type: "{{ trigger.payload_json.type }}"
+  notify_entity: !input target_notify
   base_url: !input base_url
   zone_only: !input zone_filter
-  input_zones: !input zones
-  zones: "{{ input_zones | list }}"
-  input_labels: !input labels
-  labels: "{{ input_labels | list }}"
+  zones: "{{ ( !input zones ) | list }}"
+  labels: "{{ ( !input labels ) | list }}"
   presence_entity: !input presence_filter
   notification: !input notification
   notification_text: !input notification_text
@@ -109,38 +100,38 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-  # 📸 Envoi du snapshot
-  - service: notify.telegram
+  # 📸 Snapshot
+  - service: notify.send_message
+    target:
+      entity_id: "{{ notify_entity }}"
     data:
-      target: "{{ target_chat }}"
       message: "{{ notif_text }}"
-      data:
-        disable_notification: "{{ notification }}"
-        photo:
-          - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
+      disable_notification: "{{ notification }}"
+      photo:
+        - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
-  # 🎥 Attente de fin d'événement pour envoyer le clip
+  # 🎥 Clip vidéo
   - repeat:
       sequence:
         - wait_for_trigger:
             - platform: mqtt
               topic: frigate/events
               payload: "{{ id }}"
-              value_template: "{{ value_json['after']['id'] }}"
+              value_template: "{{ value_json.after.id }}"
           timeout:
             minutes: 2
           continue_on_timeout: false
 
         - condition: template
-          value_template: "{{ wait.trigger.payload_json['type'] == 'end' }}"
+          value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
-        - service: notify.telegram
+        - service: notify.send_message
+          target:
+            entity_id: "{{ notify_entity }}"
           data:
-            target: "{{ target_chat }}"
             message: "{{ notif_text }}"
-            data:
-              disable_notification: "{{ notification }}"
-              video:
-                - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+            disable_notification: "{{ notification }}"
+            video:
+              - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
 
-      until: "{{ wait.trigger.payload_json['type'] == 'end' }}"
+      until: "{{ wait.trigger.payload_json.type == 'end' }}"
