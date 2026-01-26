@@ -10,7 +10,7 @@ blueprint:
 
     target_notify:
      name: 'Entité Telegram'
-     description: 'Entité notify Telegram (ex: notify.telegram_123456789)'
+     description: 'Entité notify Telegram '
      selector:
        entity:
          domain: notify
