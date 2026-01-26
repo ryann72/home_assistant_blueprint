@@ -15,16 +15,6 @@ blueprint:
         entity:
           domain: notify
 
-    notification:
-      name: "Désactiver la notification"
-      description: "true = silencieux / false = normal"
-      default: "false"
-      selector:
-        select:
-          options:
-            - "true"
-            - "false"
-
     notification_text:
       name: "(Optionnel) Texte de la notification"
       description: "Texte personnalisé pour la notification Telegram"
@@ -88,8 +78,6 @@ variables:
 
   # Telegram
   notify_entity: !input target_notify
-  notification: !input notification
-  notification_text: !input notification_text
 
   # URL de base
   base_url: !input base_url
@@ -125,9 +113,9 @@ action:
       entity_id: "{{ notify_entity }}"
     data:
       message: "{{ notif_text }}"
-      disable_notification: "{{ notification }}"
-      photo:
-        - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
+      data:
+        photo:
+          - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
   # Envoi du clip vidéo à la fin
   - repeat:
@@ -149,8 +137,8 @@ action:
             entity_id: "{{ notify_entity }}"
           data:
             message: "{{ notif_text }}"
-            disable_notification: "{{ notification }}"
-            video:
-              - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+            data:
+              video:
+                - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
 
       until: "{{ wait.trigger.payload_json.type == 'end' }}"
