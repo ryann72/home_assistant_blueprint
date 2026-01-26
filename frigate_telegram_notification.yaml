@@ -1,16 +1,19 @@
 blueprint:
   name: Frigate - Notification Telegram
-  description: Crée des automatisations pour recevoir des snapshots et des clips Frigate via Telegram
+  description: Notifications Frigate (snapshot + clip) via Telegram
   domain: automation
+
   input:
     camera:
       name: Caméra Frigate
       description: Nom de la caméra tel que défini dans la configuration Frigate (/config.yml).
+
     target_chat:
       name: Cible Telegram
       description: >
         chat_id utilisé par le bot Telegram.
         Les !secret ne sont pas autorisés dans les blueprints.
+
     notification:
       name: Désactiver la notification
       description: >
@@ -22,28 +25,40 @@ blueprint:
             - 'true'
             - 'false'
       default: 'false'
+
+    notification_text:
+      name: (Optionnel) Texte de la notification
+      description: Texte personnalisé pour la notification Telegram.
+      default: ''
+      selector:
+        text:
+
     base_url:
       name: (Optionnel) URL de base
       description: URL externe de votre instance Home Assistant.
       default: ''
+
     zone_filter:
       name: (Optionnel) Filtre par zone
       description: Notifier uniquement si un objet entre dans une zone définie.
       default: false
       selector:
         boolean: {}
+
     zones:
       name: (Optionnel) Zones déclencheuses
       description: Liste des zones Frigate à surveiller.
       default: []
       selector:
         object: {}
+
     labels:
       name: (Optionnel) Objets détectés
       description: Liste des objets Frigate à notifier (person, car, etc.).
       default: []
       selector:
         object: {}
+
     presence_filter:
       name: (Optionnel) Filtre de présence
       description: Notifier uniquement si l’entité sélectionnée n’est pas à la maison.
@@ -79,6 +94,12 @@ variables:
   labels: "{{ input_labels | list }}"
   presence_entity: !input presence_filter
   notification: !input notification
+  notification_text: !input notification_text
+
+  notif_text: >
+    {{ notification_text
+       if notification_text | length > 0
+       else '🚨 Mouvement détecté — Caméra : ' ~ camera_name ~ ' (Objet : ' ~ label ~ ')' }}
 
 condition:
   - "{{ type != 'end' }}"
@@ -88,17 +109,17 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
+  # 📸 Envoi du snapshot
   - service: notify.telegram
     data:
       target: "{{ target_chat }}"
-      message: >
-        Mouvement détecté.
-        Caméra : {{ camera_name }} (ID : {{ id }})
+      message: "{{ notif_text }}"
       data:
         disable_notification: "{{ notification }}"
         photo:
           - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
+  # 🎥 Attente de fin d'événement pour envoyer le clip
   - repeat:
       sequence:
         - wait_for_trigger:
@@ -116,7 +137,7 @@ action:
         - service: notify.telegram
           data:
             target: "{{ target_chat }}"
-            message: "Mouvement détecté. Caméra : {{ camera_name }}"
+            message: "{{ notif_text }}"
             data:
               disable_notification: "{{ notification }}"
               video:
