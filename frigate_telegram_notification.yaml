@@ -111,10 +111,9 @@ action:
     data:
       title: "📸 Snapshot Frigate"
       message: "{{ notif_text }}"
-      data:
-        photo:
-          - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
-            caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
+      photo:
+        - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
+          caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
 
 
   # Envoi du clip vidéo à la fin
@@ -136,12 +135,8 @@ action:
           data:
             title: "🎬 Clip Frigate"
             message: "{{ notif_text }}"
-            data:
-              video:
-                - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
-                  caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
-
-      until: "{{ wait.trigger.payload_json.type == 'end' }}"
-
+            video:
+              - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+                caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
 
       until: "{{ wait.trigger.payload_json.type == 'end' }}"
