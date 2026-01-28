@@ -117,7 +117,7 @@ action:
 
 
   # Envoi du clip vidéo à la fin
-   - repeat:
+  - repeat:
       sequence:
         - wait_for_trigger:
             - platform: mqtt
