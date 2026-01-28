@@ -1,56 +1,51 @@
 blueprint:
-  name: "Frigate - Notification Telegram (nouvelle syntaxe)"
-  description: "Notifications Frigate (snapshot + clip) via Telegram avec action notify.NOTIFIER_NAME"
+  name: "Frigate - Telegram Bot (Photo + Clip)"
+  description: "Notifications Frigate via telegram_bot.send_photo et send_video"
   domain: automation
 
   input:
     camera:
       name: "Caméra Frigate"
-      description: "Nom de la caméra dans Frigate (config.yml)"
+      description: "Nom de la caméra dans Frigate"
 
-    target_notify:
-      name: "Entité Telegram"
-      description: "Entité notify Telegram (ex: notify.telegram_123456789)"
+    telegram_target:
+      name: "Cible Telegram"
+      description: "chat_id ou user_id Telegram"
       selector:
-        entity:
-          domain: notify
+        text:
 
     notification_text:
-      name: "(Optionnel) Texte de la notification"
-      description: "Texte personnalisé pour la notification Telegram"
+      name: "(Optionnel) Texte personnalisé"
       default: ""
       selector:
         text:
 
     base_url:
-      name: "(Optionnel) URL de base"
-      description: "URL externe de Home Assistant (obligatoire pour Telegram)"
-      default: ""
+      name: "URL externe Home Assistant"
+      description: "Obligatoire pour Telegram"
+      selector:
+        text:
 
     zone_filter:
-      name: "(Optionnel) Filtre par zone"
-      description: "Notifie uniquement si une zone est franchie"
+      name: "Filtre par zone"
       default: false
       selector:
         boolean: {}
 
     zones:
-      name: "(Optionnel) Zones Frigate"
-      description: "Liste de zones à surveiller"
+      name: "Zones Frigate"
       default: []
       selector:
         object: {}
 
     labels:
-      name: "(Optionnel) Objets Frigate"
-      description: "Liste d’objets à surveiller (person, car, etc.)"
+      name: "Objets Frigate"
       default: []
       selector:
         object: {}
 
     presence_filter:
-      name: "(Optionnel) Filtre de présence"
-      description: "Notifie uniquement si l’entité n’est pas à la maison"
+      name: "Filtre de présence"
       default: ""
       selector:
         entity: {}
@@ -71,19 +66,14 @@ variables:
 
   object: "{{ trigger.payload_json.after.label | lower }}"
   label: "{{ trigger.payload_json.after.label | title }}"
-
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
-  type: "{{ trigger.payload_json.type }}"
 
-  notify_entity: !input target_notify
+  telegram_target: !input telegram_target
   base_url: !input base_url
 
   zone_only: !input zone_filter
-  input_zones: !input zones
-  zones: "{{ input_zones | default([]) }}"
-
-  input_labels: !input labels
-  labels: "{{ input_labels | map('lower') | list }}"
+  zones: !input zones
+  labels: "{{ ( !input labels ) | map('lower') | list }}"
 
   presence_entity: !input presence_filter
 
@@ -99,17 +89,16 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-  # 📸 Snapshot immédiat
-  - action: "{{ notify_entity }}"
+  # 📸 PHOTO
+  - action: telegram_bot.send_photo
     data:
-      title: "📸 Snapshot Frigate"
-      message: "{{ notif_text }}"
-      data:
-        photo:
-          - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
-            caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
+      target:
+        - "{{ telegram_target }}"
+      url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
+      caption: "{{ notif_text }}"
+      parse_mode: html
 
-  # 🎬 Attente de la fin de l’événement pour envoyer le clip
+  # 🎬 VIDEO (fin de l'événement)
   - repeat:
       sequence:
         - wait_for_trigger:
@@ -124,13 +113,12 @@ action:
         - condition: template
           value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
-        - action: "{{ notify_entity }}"
+        - action: telegram_bot.send_video
           data:
-            title: "🎬 Clip Frigate"
-            message: "{{ notif_text }}"
-            data:
-              video:
-                - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
-                  caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
+            target:
+              - "{{ telegram_target }}"
+            url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+            caption: "{{ notif_text }}"
+            parse_mode: html
 
       until: "{{ wait.trigger.payload_json.type == 'end' }}"
