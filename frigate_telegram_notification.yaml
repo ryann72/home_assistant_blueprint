@@ -107,20 +107,18 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-  # Envoi du snapshot
-  - service: notify.send_message
+  - action: "{{ notify_entity }}"
     data:
-      entity_id: "{{ notify_entity }}"
-      title: "Snapshot Frigate"
+      title: "📸 Snapshot Frigate"
       message: "{{ notif_text }}"
       data:
         photo:
           - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
-            caption: "Caméra: {{ camera_name }} (Objet: {{ label }})"
+            caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
 
 
   # Envoi du clip vidéo à la fin
-  - repeat:
+   - repeat:
       sequence:
         - wait_for_trigger:
             - platform: mqtt
@@ -134,14 +132,16 @@ action:
         - condition: template
           value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
-        - service: notify.send_message
+        - action: "{{ notify_entity }}"
           data:
-            entity_id: "{{ notify_entity }}"
-            title: "Clip Frigate"
+            title: "🎬 Clip Frigate"
             message: "{{ notif_text }}"
             data:
               video:
                 - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
-                  caption: "Caméra: {{ camera_name }} (Objet: {{ label }})"
+                  caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
+
+      until: "{{ wait.trigger.payload_json.type == 'end' }}"
+
 
       until: "{{ wait.trigger.payload_json.type == 'end' }}"
