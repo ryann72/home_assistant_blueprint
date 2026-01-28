@@ -1,12 +1,12 @@
 blueprint:
   name: "Frigate - Notification Telegram (nouvelle syntaxe)"
-  description: "Notifications Frigate (snapshot + clip) via Telegram avec notify.send_message"
+  description: "Notifications Frigate (snapshot + clip) via Telegram avec action notify.NOTIFIER_NAME"
   domain: automation
 
   input:
     camera:
       name: "Caméra Frigate"
-      description: "Nom de la caméra dans Frigate (/config.yml)"
+      description: "Nom de la caméra dans Frigate (config.yml)"
 
     target_notify:
       name: "Entité Telegram"
@@ -24,7 +24,7 @@ blueprint:
 
     base_url:
       name: "(Optionnel) URL de base"
-      description: "URL externe de Home Assistant"
+      description: "URL externe de Home Assistant (obligatoire pour Telegram)"
       default: ""
 
     zone_filter:
@@ -59,42 +59,34 @@ mode: single
 max_exceeded: silent
 
 trigger:
-  platform: mqtt
-  topic: frigate/events
-  payload: !input camera
-  value_template: "{{ value_json.after.camera }}"
+  - platform: mqtt
+    topic: frigate/events
+    payload: !input camera
+    value_template: "{{ value_json.after.camera }}"
 
 variables:
   id: "{{ trigger.payload_json.after.id }}"
   camera: "{{ trigger.payload_json.after.camera }}"
   camera_name: "{{ camera | replace('_', ' ') | title }}"
 
-  # Label brut et formaté
   object: "{{ trigger.payload_json.after.label | lower }}"
   label: "{{ trigger.payload_json.after.label | title }}"
 
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
   type: "{{ trigger.payload_json.type }}"
 
-  # Telegram
   notify_entity: !input target_notify
-
-  # URL de base
   base_url: !input base_url
 
-  # Zones
   zone_only: !input zone_filter
   input_zones: !input zones
   zones: "{{ input_zones | default([]) }}"
 
-  # Labels
   input_labels: !input labels
   labels: "{{ input_labels | map('lower') | list }}"
 
-  # Présence
   presence_entity: !input presence_filter
 
-  # Texte de notification final
   notif_text: >
     {{ notification_text
        if notification_text | length > 0
@@ -107,16 +99,17 @@ condition:
   - "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
+  # 📸 Snapshot immédiat
   - action: "{{ notify_entity }}"
     data:
       title: "📸 Snapshot Frigate"
       message: "{{ notif_text }}"
-      photo:
-        - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
-          caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
+      data:
+        photo:
+          - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
+            caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
 
-
-  # Envoi du clip vidéo à la fin
+  # 🎬 Attente de la fin de l’événement pour envoyer le clip
   - repeat:
       sequence:
         - wait_for_trigger:
@@ -135,8 +128,9 @@ action:
           data:
             title: "🎬 Clip Frigate"
             message: "{{ notif_text }}"
-            video:
-              - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
-                caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
+            data:
+              video:
+                - url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
+                  caption: "Caméra : {{ camera_name }} (Objet : {{ label }})"
 
       until: "{{ wait.trigger.payload_json.type == 'end' }}"
