@@ -68,19 +68,12 @@ variables:
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
 
   # ---- URLs Frigate ----
-  snapshot_url: >
-    {{ input_base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg
+  snapshot_url: "{{ input_base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg"
 
-  clip_url: >
-    {{ input_base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4
+  clip_url: "{{ input_base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4"
 
   # ---- Texte notification ----
-  notif_text: >
-    {{ input_notif_text
-       if input_notif_text | length > 0
-       else '🚨 ' ~ cam | replace('_',' ') | title
-       ~ ' : ' ~ label | title
-       ~ ' détecté à ' ~ states('sensor.time') }}
+  notif_text: " {{ input_notif_text   if input_notif_text | length > 0  else '🚨 ' ~ cam | replace('_',' ') | title   ~ ' : ' ~ label | title ~ ' détecté à ' ~ states('sensor.time') }}"
 
 condition:
   - "{{ event_type == 'new' }}"
