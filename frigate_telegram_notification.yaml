@@ -1,6 +1,6 @@
 blueprint:
   name: "Frigate - Telegram Bot (Snapshot + Clip)"
-  description: "Notification Frigate via snapshot et clip (corrigé HA)"
+  description: "Notification Frigate via snapshot et clip"
   domain: automation
 
   input:
@@ -53,32 +53,40 @@ trigger:
     topic: frigate/events
 
 variables:
+  # ---- Inputs copiés ----
+  input_camera: !input camera
+  input_labels: !input labels
+  input_zones: !input zones
+  input_base_url: !input base_url
+  input_notif_text: !input notification_text
+
+  # ---- Données Frigate ----
   event_type: "{{ trigger.payload_json.type }}"
   event_id: "{{ trigger.payload_json.after.id }}"
   cam: "{{ trigger.payload_json.after.camera }}"
   label: "{{ trigger.payload_json.after.label | lower }}"
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
 
-  base_url: !input base_url
-
+  # ---- URLs Frigate ----
   snapshot_url: >
-    {{ base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg
+    {{ input_base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg
 
   clip_url: >
-    {{ base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4
+    {{ input_base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4
 
+  # ---- Texte notification ----
   notif_text: >
-    {{ ( !input notification_text )
-       if ( !input notification_text ) | length > 0
+    {{ input_notif_text
+       if input_notif_text | length > 0
        else '🚨 ' ~ cam | replace('_',' ') | title
        ~ ' : ' ~ label | title
        ~ ' détecté à ' ~ states('sensor.time') }}
 
 condition:
   - "{{ event_type == 'new' }}"
-  - "{{ cam == ( !input camera ) }}"
-  - "{{ ( !input labels ) | length == 0 or label in ( !input labels ) }}"
-  - "{{ ( !input zones ) | length == 0 or entered_zones | select('in', ( !input zones )) | list | length > 0 }}"
+  - "{{ cam == input_camera }}"
+  - "{{ input_labels | length == 0 or label in input_labels }}"
+  - "{{ input_zones | length == 0 or entered_zones | select('in', input_zones) | list | length > 0 }}"
 
 action:
   # 📸 SNAPSHOT
@@ -89,7 +97,7 @@ action:
       caption: "{{ notif_text }}"
       disable_notification: true
 
-  # ⏳ ATTENTE FIN EVENT
+  # ⏳ FIN EVENT
   - wait_for_trigger:
       - platform: mqtt
         topic: frigate/events
@@ -101,7 +109,7 @@ action:
   - condition: template
     value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
-  # 🎬 CLIP VIDÉO
+  # 🎬 CLIP
   - service: telegram_bot.send_video
     data:
       config_entry_id: !input config_entry_id
