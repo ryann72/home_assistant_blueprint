@@ -1,6 +1,6 @@
 blueprint:
   name: "Frigate - Telegram Bot (Snapshot + Clip)"
-  description: "Notification Frigate via snapshot.jpg et clip.mp4"
+  description: "Notification Frigate avec image snapshot + vidéo clip"
   domain: automation
 
   input:
@@ -59,16 +59,16 @@ variables:
   cam: "{{ trigger.payload_json.after.camera }}"
   label: "{{ trigger.payload_json.after.label | lower }}"
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
-
+  base_url: !input base_url
   notif_text: >
     {{ notification_text if notification_text | length > 0
        else '🚨 ' ~ cam | replace('_',' ') | title
-       ~ ' : ' ~ label | title ~ ' détecté le '
+       ~ ' : ' ~ label | title ~ ' détecté à '
        ~ states('sensor.time') }}
 
 condition:
-  - "{{ cam == !input camera }}"
   - "{{ event_type == 'new' }}"
+  - "{{ cam == !input camera }}"
   - "{{ labels | length == 0 or label in labels }}"
   - "{{ zones | length == 0 or entered_zones | select('in', zones) | list | length > 0 }}"
 
@@ -78,11 +78,11 @@ action:
     data:
       verify_ssl: true
       config_entry_id: !input config_entry_id
-      url: "{{ !input base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg"
+      url: "{{ base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg"
       caption: "{{ notif_text }}"
       disable_notification: true
 
-  # 🎬 ATTENTE FIN EVENT
+  # 🎬 ATTENTE FIN DE L'ÉVÉNEMENT
   - wait_for_trigger:
       - platform: mqtt
         topic: frigate/events
@@ -91,7 +91,7 @@ action:
     timeout: "00:02:00"
     continue_on_timeout: false
 
-  # 🎬 VIDEO CLIP
+  # 🎬 ENVOI VIDÉO
   - condition: template
     value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
@@ -99,6 +99,6 @@ action:
     data:
       verify_ssl: true
       config_entry_id: !input config_entry_id
-      url: "{{ !input base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4"
+      url: "{{ base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4"
       caption: "{{ notif_text }}"
       disable_notification: true
