@@ -76,7 +76,6 @@ variables:
   notif_text: " {{ input_notif_text   if input_notif_text | length > 0  else '🚨 ' ~ cam | replace('_',' ') | title   ~ ' : ' ~ label | title ~ ' détecté à ' ~ states('sensor.time') }}"
 
 condition:
-  - "{{ event_type == 'new' }}"
   - "{{ cam == input_camera }}"
   - "{{ input_labels | length == 0 or label in input_labels }}"
   - "{{ input_zones | length == 0 or entered_zones | select('in', input_zones) | list | length > 0 }}"
