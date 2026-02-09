@@ -1,6 +1,6 @@
 blueprint:
   name: "Frigate - Telegram Bot (Snapshot + Clip)"
-  description: "Notification Frigate avec image snapshot + vidéo clip"
+  description: "Notification Frigate via snapshot et clip (corrigé HA)"
   domain: automation
 
   input:
@@ -16,7 +16,6 @@ blueprint:
 
     base_url:
       name: URL externe Home Assistant
-      description: "Ex: https://ha.mondomaine.fr"
       selector:
         text:
 
@@ -59,30 +58,38 @@ variables:
   cam: "{{ trigger.payload_json.after.camera }}"
   label: "{{ trigger.payload_json.after.label | lower }}"
   entered_zones: "{{ trigger.payload_json.after.entered_zones }}"
+
   base_url: !input base_url
+
+  snapshot_url: >
+    {{ base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg
+
+  clip_url: >
+    {{ base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4
+
   notif_text: >
-    {{ notification_text if notification_text | length > 0
+    {{ ( !input notification_text )
+       if ( !input notification_text ) | length > 0
        else '🚨 ' ~ cam | replace('_',' ') | title
-       ~ ' : ' ~ label | title ~ ' détecté à '
-       ~ states('sensor.time') }}
+       ~ ' : ' ~ label | title
+       ~ ' détecté à ' ~ states('sensor.time') }}
 
 condition:
   - "{{ event_type == 'new' }}"
-  - "{{ cam == !input camera }}"
-  - "{{ labels | length == 0 or label in labels }}"
-  - "{{ zones | length == 0 or entered_zones | select('in', zones) | list | length > 0 }}"
+  - "{{ cam == ( !input camera ) }}"
+  - "{{ ( !input labels ) | length == 0 or label in ( !input labels ) }}"
+  - "{{ ( !input zones ) | length == 0 or entered_zones | select('in', ( !input zones )) | list | length > 0 }}"
 
 action:
-  # 📸 PHOTO SNAPSHOT
+  # 📸 SNAPSHOT
   - service: telegram_bot.send_photo
     data:
-      verify_ssl: true
       config_entry_id: !input config_entry_id
-      url: "{{ base_url }}/api/frigate/notifications/{{ event_id }}/snapshot.jpg"
+      url: "{{ snapshot_url }}"
       caption: "{{ notif_text }}"
       disable_notification: true
 
-  # 🎬 ATTENTE FIN DE L'ÉVÉNEMENT
+  # ⏳ ATTENTE FIN EVENT
   - wait_for_trigger:
       - platform: mqtt
         topic: frigate/events
@@ -91,14 +98,13 @@ action:
     timeout: "00:02:00"
     continue_on_timeout: false
 
-  # 🎬 ENVOI VIDÉO
   - condition: template
     value_template: "{{ wait.trigger.payload_json.type == 'end' }}"
 
+  # 🎬 CLIP VIDÉO
   - service: telegram_bot.send_video
     data:
-      verify_ssl: true
       config_entry_id: !input config_entry_id
-      url: "{{ base_url }}/api/frigate/notifications/{{ event_id }}/{{ cam }}/clip.mp4"
+      url: "{{ clip_url }}"
       caption: "{{ notif_text }}"
       disable_notification: true
