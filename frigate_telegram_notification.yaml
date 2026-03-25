@@ -1,22 +1,17 @@
 blueprint:
-  name: Frigate - Telegram Notification
-  description: Create automations to receive Snapshots and Clips from Frigate
+  name: Frigate - Notification Telegram
+  description: Créez des automatisations pour recevoir des instantanés et des clips depuis Frigate
   domain: automation
   input:
     camera:
-      name: Frigate Camera
-      description: The name of the camera as defined in your frigate configuration
-        (/conf.yml).
+      name: Caméra Frigate
+      description: Le nom de la caméra tel qu'il est défini dans votre configuration frigate (/conf.yml).
     target_chat:
-      name: Target
-      description: 'The chat_id to be used by the Telegram bot. !secret chat_id is
-        not allowed on Blueprint, you will need the chat_id code.
-
-        '
+      name: Cible
+      description: 'L’identifiant du chat à utiliser par le bot Telegram. !secret chat_id n’est pas autorisé dans le Blueprint, vous aurez besoin du code chat_id.'
     notification:
       name: Notification
-      description: 'Select "true" to disable notification, lave "false" to receive
-        notification. '
+      description: 'Sélectionnez "true" pour désactiver la notification, laissez "false" pour recevoir la notification.'
       selector:
         select:
           options:
@@ -27,36 +22,34 @@ blueprint:
           multiple: false
       default: 'false'
     base_url:
-      name: (Optional) Base URL
-      description: The external url for your Home Assistant instance. This will default
-        to a relative URL and will open the clips in the app instead of the browser,
-        which may cause issues on some devices.
+      name: (Facultatif) URL de base
+      description: L'URL externe de votre instance Home Assistant. Cela sera par défaut une URL relative et ouvrira les clips dans l'application au lieu du navigateur, ce qui peut poser problème sur certains appareils.
       default: ''
     text:
-      name: (Optional) Texte de la notification
-      description: Texte pour la notication
-      default: 'Mouvement détécté, caméra :'
+      name: (Facultatif) Texte de la notification
+      description: Texte pour la notification
+      default: 'Mouvement détecté, caméra :'
     zone_filter:
-      name: (Optional) Zone Filter
-      description: Only notify if object has entered a defined zone.
+      name: (Facultatif) Filtre de zone
+      description: Ne notifier que si l'objet est entré dans une zone définie.
       default: false
       selector:
         boolean: {}
     zones:
-      name: (Optional) Trigger Zones
-      description: A list (-) of zones you wish to recieve notifications for.
+      name: (Facultatif) Zones de déclenchement
+      description: Une liste (-) des zones pour lesquelles vous souhaitez recevoir des notifications.
       default: []
       selector:
         object: {}
     labels:
-      name: (Optional) Trigger Objects
-      description: A list (-) of objects you wish to recieve notifications for.
+      name: (Facultatif) Objets de déclenchement
+      description: Une liste (-) des objets pour lesquels vous souhaitez recevoir des notifications.
       default: []
       selector:
         object: {}
     presence_filter:
-      name: (Optional) Presence Filter
-      description: Only notify if selected presence entity is not "home".
+      name: (Facultatif) Filtre de présence
+      description: Ne notifier que si l'entité de présence sélectionnée n'est pas "à la maison".
       default: ''
       selector:
         entity:
@@ -97,8 +90,7 @@ action:
   data:
     chat_id: '{{ target_chat }}'
     disable_notification: '{{ notification }}'
-    caption: '{{ text }} {{ camera_name }} le {{now().strftime("%a %b %d %H:%M:%S %p")}} - (ID: {{ id }})
-      '
+    caption: '{{ text }} {{ camera_name }} le {{now().strftime("%a %b %d %H:%M:%S %p")}} - (ID: {{ id }})'
     url: '{{base_url}}/api/frigate/notifications/{{id}}/snapshot.jpg'
 - repeat:
     sequence:
@@ -116,6 +108,6 @@ action:
       data:
         chat_id: '{{ target_chat }}'
         disable_notification: '{{ notification }}'
-        caption: '{{ text }} {{ camera_name }}, le  {{now().strftime("%a %b %d %H:%M:%S %p")}}'
+        caption: '{{ text }} {{ camera_name }}, le {{now().strftime("%a %b %d %H:%M:%S %p")}}'
         url: '{{base_url}}/api/frigate/notifications/{{id}}/{{camera}}/clip.mp4'
     until: '{{ wait.trigger.payload_json[''type''] == ''end'' }}'
